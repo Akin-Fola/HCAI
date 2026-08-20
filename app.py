@@ -100,6 +100,27 @@ def match_clusters(narrative: str) -> dict:
     return {"identified_clusters": results}
 
 
+def build_hcp_summary(clusters: list) -> str:
+    """Build a plain-language, non-diagnostic summary a user can copy or
+    download to share with a healthcare professional. Distinct from the
+    per-cluster reasoning display: that shows the user WHY the tool
+    concluded something (FR3, explainability); this gives the user
+    something actually formatted for the downstream conversation (FR8)."""
+    lines = [
+        "Summary to share with a healthcare professional",
+        "(generated using a non-diagnostic symptom pattern tool)",
+        "",
+    ]
+    for c in clusters:
+        lines.append(f"- {c['description']}, noted from: {', '.join(c['matched_terms'])}")
+    lines.append("")
+    lines.append(
+        "I wanted to share these patterns with you and ask whether they "
+        "might be connected, and what you'd recommend as a next step."
+    )
+    return "\n".join(lines)
+
+
 # --- Streamlit interface -----------------------------------------------
 # NFR2: no narrative text is written to disk, logs, or external storage
 # anywhere in this script -- it exists only in memory for this session.
@@ -165,6 +186,22 @@ if submitted:
                         "Matched from what you wrote: "
                         + ", ".join(f"*{t}*" for t in cluster["matched_terms"])
                     )
+
+            # FR8: synthesised, copyable/downloadable summary formatted for
+            # the actual healthcare conversation, not just system reasoning
+            st.divider()
+            st.subheader("Summary to share with your healthcare professional")
+            hcp_summary = build_hcp_summary(clusters)
+            st.text_area(
+                "You can copy this, or download it below, to bring to your appointment:",
+                value=hcp_summary,
+                height=180,
+            )
+            st.download_button(
+                "Download summary",
+                data=hcp_summary,
+                file_name="symptom_summary.txt",
+            )
 
         # SR2: persistent, non-dismissible disclaimer (>=14pt equivalent)
         st.markdown(
